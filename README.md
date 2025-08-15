@@ -68,4 +68,4 @@ MIT License
 
 ## Author
 
-Your Name Here
+Kilgor
