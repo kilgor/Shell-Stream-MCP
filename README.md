@@ -13,8 +13,10 @@ MCP Shell-Stream Server is a Python-based server that allows you to run, monitor
 - Cross-platform support (Windows, Linux, macOS)
 - Retrieve system information (e.g., IP configuration)
 
+
 ## Installation
 
+### Standard MCP Shell-Stream Server (`cmd_mcp.py`)
 1. Clone the repository or copy the project files to your machine.
 2. Ensure you have Python 3.10 or newer installed.
 3. (Optional) Create and activate a virtual environment:
@@ -30,6 +32,13 @@ MCP Shell-Stream Server is a Python-based server that allows you to run, monitor
 	```powershell
 	pip install .
 	```
+
+### Admin MCP Shell-Stream Server (`cmd_mcp_admin.py`)
+1. Follow steps 1-4 above.
+2. **Important:** Run the server with administrative rights:
+	- On Windows: Right-click your terminal and select "Run as administrator" before starting the server.
+	- On Unix: Use `sudo python cmd_mcp_admin.py`.
+
 
 ## Usage
 
@@ -58,9 +67,12 @@ mcp_shell_stream.start(command="ipconfig /all", shell="powershell")
 mcp_shell_stream.start(command="shutdown /a", shell="powershell")
 ```
 
-## Security Notice
 
-Be cautious when running system-level commands, especially those that affect system state (shutdown, restart). Ensure the server is used in a trusted environment.
+## Warnings & Security Notice
+
+- **Danger:** The admin server (`cmd_mcp_admin.py`) can execute privileged commands (e.g., rename computer, restart system). Use only in trusted environments.
+- **Permissions:** Some commands (like renaming the computer or restarting VS Code) require administrative rights. If not run as admin, these commands will fail.
+- **Responsibility:** Always verify commands before running them, especially if exposed to remote or automated control.
 
 ## License
 
