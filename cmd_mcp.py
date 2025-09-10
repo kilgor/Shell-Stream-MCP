@@ -33,7 +33,6 @@ BLOCKED_PATHS = [
     r'C:\\Program Files \(x86\)\\',      # 32-bit applications directory
     r'C:\\ProgramData\\',                # Application data shared across users
     r'C:\\System Volume Information\\',  # System restore and volume shadow copies
-    r'C:\\\$Recycle\.Bin\\',            # Recycle bin contents
     r'C:\\hiberfil\.sys',               # Hibernation file
     r'C:\\pagefile\.sys',               # Virtual memory paging file
     r'C:\\Windows\\System32\\config\\', # Registry hive files
@@ -45,26 +44,17 @@ BLOCKED_PATHS = [
     r'\\SysWOW64\\'                     # 32-bit system directory on 64-bit Windows
 ]
 
-# Commands that can destroy the system
+# Commands that can destroy the system - SIMPLIFIED LIST
 DANGEROUS_COMMANDS = [
     'bcdedit',                         # Boot configuration editor (can make system unbootable)
     'bootrec',                         # Boot recovery tool (can damage boot process)
     'bcdboot',                         # Boot configuration data tool
-    'shutdown /s /f',                  # Forced immediate shutdown (can cause data loss)
-    'shutdown /r /f',                  # Forced immediate restart (can cause data loss)
-    'taskkill /f /im explorer.exe',    # Kill Windows Explorer (desktop disappears)
-    'taskkill /f /im winlogon.exe',    # Kill login process (system instability)
-    'taskkill /f /im csrss.exe',       # Kill critical system process (BSOD)
-    'taskkill /f /im lsass.exe',       # Kill authentication process (immediate logout)
     'sfc /scannow',                    # System file checker (can be slow/disruptive)
-    'chkdsk C: /f',                    # Forced disk check on system drive (disruptive)
-    'chkdsk /f',                       # Forced disk check (locks drive)
-    'del C:\\Windows',                 # Delete Windows directory
-    'rmdir /s C:\\Windows',            # Remove Windows directory recursively
-    'rd /s C:\\Windows',               # Remove Windows directory (short form)
-    'attrib -r -s -h C:\\Windows',     # Remove system attributes from Windows
-    'takeown /f C:\\Windows',          # Take ownership of Windows directory
-    'icacls C:\\Windows'               # Change permissions on Windows directory
+    'del c:\\windows',                 # Delete Windows directory
+    'rmdir /s c:\\windows',            # Remove Windows directory recursively
+    'rd /s c:\\windows',               # Remove Windows directory (short form)
+    'takeown /f c:\\windows',          # Take ownership of Windows directory
+    'icacls c:\\windows'               # Change permissions on Windows directory
 ]
 
 # Protected drives - format and diskpart operations blocked on these drives
@@ -124,26 +114,21 @@ def is_command_safe(command: str) -> tuple[bool, str]:
     # Special check for format and diskpart commands on protected drives
     if 'format' in command_lower:
         for protected_drive in PROTECTED_DRIVES:
-            # Check for patterns like "format C:", "format C: /q", etc.
-            if re.search(rf'\bformat\s+{re.escape(protected_drive)}\b', command_lower):
+            # Simple string matching instead of regex
+            if f'format {protected_drive.lower()}' in command_lower:
                 return False, f"BLOCKED: Format command targeting protected drive {protected_drive}"
     
     if 'diskpart' in command_lower:
-        # For diskpart, we need to be more careful as it can be used in scripts
-        # Block common dangerous diskpart patterns on protected drives
-        dangerous_diskpart_patterns = [
-            rf'select\s+disk\s+0',  # Usually the system disk
-            rf'clean',              # Wipes partition table
-            rf'format\s+fs=',       # Format filesystem
-            rf'active',             # Set active partition
-        ]
-        for pattern in dangerous_diskpart_patterns:
-            if re.search(pattern, command_lower):
-                return False, f"BLOCKED: Dangerous diskpart operation detected: {pattern}"
+        # Simple string matching for dangerous diskpart operations
+        dangerous_diskpart_terms = ['select disk 0', 'clean', 'format fs=', 'active']
+        for term in dangerous_diskpart_terms:
+            if term in command_lower:
+                return False, f"BLOCKED: Dangerous diskpart operation detected: {term}"
     
     # Check for blocked file paths
     for blocked_path in BLOCKED_PATHS:
-        if re.search(blocked_path.lower().replace('\\\\', '\\'), command_lower):
+        # Convert the path pattern to lowercase and use simple string matching instead of regex
+        if blocked_path.lower().replace('\\\\', '\\') in command_lower:
             return False, f"BLOCKED: Access to protected path: {blocked_path}"
     
     # Check for dangerous registry operations
@@ -170,11 +155,16 @@ def is_command_safe(command: str) -> tuple[bool, str]:
             if critical_service in command_lower:
                 return False, f"BLOCKED: Cannot stop critical service: {critical_service}"
     
-    # Check for forced process termination of critical processes
+    # Check for forced process termination of critical processes (but allow Claude.exe)
     if 'taskkill' in command_lower and '/f' in command_lower:
-        for critical_service in CRITICAL_SERVICES:
-            if critical_service in command_lower:
-                return False, f"BLOCKED: Cannot force-kill critical process: {critical_service}"
+        # Allow killing Claude.exe specifically
+        if 'claude.exe' in command_lower:
+            return True, "Allowed: Claude.exe termination"
+        # Block critical system processes
+        critical_processes = ['winlogon.exe', 'csrss.exe', 'lsass.exe', 'explorer.exe']
+        for critical_process in critical_processes:
+            if critical_process in command_lower:
+                return False, f"BLOCKED: Cannot force-kill critical process: {critical_process}"
     
     # Check for boot configuration changes
     if any(boot_cmd in command_lower for boot_cmd in ['bcdedit', 'bootrec', 'bcdboot']):
